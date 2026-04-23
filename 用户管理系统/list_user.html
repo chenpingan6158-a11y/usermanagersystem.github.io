@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户列表 - 用户管理系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        /* 左侧导航栏样式 */
+        body {
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .navbar {
+            background-color: #333;
+            color: white;
+            width: 200px;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+        .nav-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .nav-logo {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            padding: 0 20px 20px;
+            border-bottom: 1px solid #555;
+        }
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px 0;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .nav-link:hover, .nav-link.active {
+            background-color: #555;
+        }
+        /* 页面容器 */
+        .page-container {
+            flex: 1;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .content {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        /* 搜索框样式 */
+        .search-box {
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        /* 表格样式 */
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .user-table th,
+        .user-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .user-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .user-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        /* 按钮样式 */
+        .btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .btn-edit {
+            background-color: #2196F3;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #1976D2;
+        }
+        .btn-delete {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #d32f2f;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal.show {
+            display: block;
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 500px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            margin: 0;
+        }
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/home" class="nav-logo">用户管理系统</a>
+            <div class="nav-links">
+                <a href="/home" class="nav-link">首页</a>
+                <a href="/users/add" class="nav-link">添加用户</a>
+                <a href="/users/list" class="nav-link active">用户列表</a>
+                <a href="/stats" class="nav-link">统计</a>
+                <a href="/login" class="nav-link">退出</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主内容区 -->
+    <div class="page-container">
+        <div class="content" id="app">
+            <h1>用户列表</h1>
+            
+            <div class="search-box">
+                <input v-model="searchQuery" placeholder="搜索姓名、邮箱、电话或部门" @input="handleSearch">
+            </div>
+            
+            {% raw %}
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>姓名</th>
+                        <th>邮箱</th>
+                        <th>电话</th>
+                        <th>年龄</th>
+                        <th>性别</th>
+                        <th>部门</th>
+                        <th>职位</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-if="users.length === 0">
+                        <td colspan="9" class="empty-message">暂无用户</td>
+                    </tr>
+                    <tr v-for="user in users" :key="user.id">
+                        <td v-text="user.id"></td>
+                        <td v-text="user.name"></td>
+                        <td v-text="user.email"></td>
+                        <td v-text="user.phone"></td>
+                        <td v-text="user.age"></td>
+                        <td v-text="user.gender"></td>
+                        <td v-text="user.department"></td>
+                        <td v-text="user.position"></td>
+                        <td>
+                            <button class="btn btn-edit" @click="editUser(user)">编辑</button>
+                            <button class="btn btn-delete" @click="deleteUser(user.id)">删除</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- 编辑模态框 -->
+            <div class="modal" :class="{ show: showModal }">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>编辑用户</h2>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-name">姓名 *</label>
+                        <input type="text" id="edit-name" v-model="editForm.name">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-email">邮箱 *</label>
+                        <input type="email" id="edit-email" v-model="editForm.email">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-phone">电话</label>
+                        <input type="tel" id="edit-phone" v-model="editForm.phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-age">年龄</label>
+                        <input type="number" id="edit-age" v-model="editForm.age">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-gender">性别</label>
+                        <select id="edit-gender" v-model="editForm.gender">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-department">部门</label>
+                        <input type="text" id="edit-department" v-model="editForm.department">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-position">职位</label>
+                        <input type="text" id="edit-position" v-model="editForm.position">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-address">地址</label>
+                        <textarea id="edit-address" v-model="editForm.address"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @click="closeModal">取消</button>
+                        <button class="btn btn-primary" @click="updateUser">保存</button>
+                    </div>
+                </div>
+            </div>
+            {% endraw %}
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    users: [],
+                    searchQuery: '',
+                    showModal: false,
+                    currentUserId: null,
+                    editForm: {
+                        name: '',
+                        email: '',
+                        phone: '',
+                        age: '',
+                        gender: '',
+                        department: '',
+                        position: '',
+                        address: ''
+                    }
+                };
+            },
+            mounted() {
+                this.fetchUsers();
+            },
+            methods: {
+                async fetchUsers() {
+                    try {
+                        const params = {};
+                        if (this.searchQuery) {
+                            params.search = this.searchQuery;
+                        }
+                        const response = await axios.get('/api/users', { params });
+                        this.users = response.data;
+                    } catch (error) {
+                        console.error('获取用户失败:', error);
+                    }
+                },
+                handleSearch() {
+                    this.fetchUsers();
+                },
+                editUser(user) {
+                    this.currentUserId = user.id;
+                    this.editForm = {
+                        name: user.name,
+                        email: user.email,
+                        phone: user.phone || '',
+                        age: user.age || '',
+                        gender: user.gender || '',
+                        department: user.department || '',
+                        position: user.position || '',
+                        address: user.address || ''
+                    };
+                    this.showModal = true;
+                },
+                closeModal() {
+                    this.showModal = false;
+                    this.currentUserId = null;
+                    this.editForm = {
+                        name: '',
+                        email: '',
+                        phone: '',
+                        age: '',
+                        gender: '',
+                        department: '',
+                        position: '',
+                        address: ''
+                    };
+                },
+                async updateUser() {
+                    if (!this.editForm.name || !this.editForm.email) {
+                        alert('姓名和邮箱为必填项');
+                        return;
+                    }
+                    
+                    try {
+                        await axios.put(`/api/users/${this.currentUserId}`, this.editForm);
+                        this.fetchUsers();
+                        this.closeModal();
+                        alert('更新成功！');
+                    } catch (error) {
+                        console.error('更新用户失败:', error);
+                        alert('更新失败，请稍后重试');
+                    }
+                },
+                async deleteUser(id) {
+                    if (confirm('确定要删除这个用户吗？')) {
+                        try {
+                            await axios.delete(`/api/users/${id}`);
+                            this.fetchUsers();
+                            alert('删除成功！');
+                        } catch (error) {
+                            console.error('删除用户失败:', error);
+                            alert('删除失败，请稍后重试');
+                        }
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
